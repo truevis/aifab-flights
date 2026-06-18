@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flight Link Generator</title>
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+    .custom-underline {
+      text-decoration: underline;
+      text-decoration-style: dotted;
+      text-underline-offset: 4px;
+    }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-800 antialiased min-h-screen">
+
+  <header class="bg-slate-900 text-white border-b border-slate-800 shadow-sm py-5 px-6">
+    <div class="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div>
+        <h1 class="text-2xl font-bold tracking-tight">Flight Link Generator</h1>
+        <p class="text-slate-400 text-sm mt-1">Generate dynamic deep-links across top metasearch engines for any global route.</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <button onclick="resetToBOSBKK()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-md border border-slate-700 transition">
+          Reset to BOS ➔ BKK
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+
+      <section class="lg:col-span-1 bg-white p-6 rounded-xl border border-gray-200 shadow-sm h-fit">
+        <h2 class="text-lg font-semibold text-gray-900 mb-5 pb-3 border-b border-gray-100">Search Configuration</h2>
+
+        <form id="generatorForm" onsubmit="event.preventDefault(); generateTable();" class="space-y-5">
+          <div>
+            <label for="fromAirport" class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Departure Airport (IATA)</label>
+            <input type="text" id="fromAirport" value="BOS" maxlength="3" required
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase font-semibold text-center text-lg tracking-widest bg-gray-50 focus:bg-white transition"
+              oninput="this.value = this.value.toUpperCase(); updatePopularRoutes();">
+          </div>
+
+          <div>
+            <label for="toAirport" class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Destination Airport (IATA)</label>
+            <input type="text" id="toAirport" value="BKK" maxlength="3" required
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase font-semibold text-center text-lg tracking-widest bg-gray-50 focus:bg-white transition"
+              oninput="this.value = this.value.toUpperCase()">
+          </div>
+
+          <div>
+            <label for="startDate" class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Starting Date</label>
+            <input type="date" id="startDate" required
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium text-gray-900 bg-gray-50 focus:bg-white transition">
+          </div>
+
+          <div>
+            <label for="durationDays" class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Date Range Duration</label>
+            <select id="durationDays"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium bg-gray-50">
+              <option value="7">7 Days (Weekly Spread)</option>
+              <option value="14">14 Days (Two Weeks)</option>
+              <option value="30">30 Days (Full Month)</option>
+              <option value="31" selected>31 Days (Optimized Spread)</option>
+            </select>
+          </div>
+
+          <button type="submit"
+            class="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-md shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition text-sm">
+            Generate Dynamic Table
+          </button>
+        </form>
+
+        <div class="mt-6 pt-5 border-t border-gray-100" id="popularRoutes"></div>
+      </section>
+
+      <section class="lg:col-span-3">
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+
+          <div class="bg-slate-50 border-b border-gray-200 px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div class="flex items-center gap-3">
+              <span id="badgeFrom" class="px-2.5 py-1 bg-blue-100 text-blue-800 text-xs font-bold rounded-full tracking-wider">BOS</span>
+              <span class="text-gray-400 font-semibold">➔</span>
+              <span id="badgeTo" class="px-2.5 py-1 bg-emerald-100 text-emerald-800 text-xs font-bold rounded-full tracking-wider">BKK</span>
+              <span class="text-sm text-gray-500 font-medium">One-Way Flights Only</span>
+            </div>
+            <div class="text-xs text-gray-500 font-medium">
+              Showing dates: <span id="textDateRange" class="font-semibold text-gray-700">Loading...</span>
+            </div>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 text-left text-[14px]">
+              <thead class="bg-slate-50">
+                <tr>
+                  <th scope="col" class="px-6 py-4 font-semibold text-gray-700 border-b border-gray-200">Departure Date</th>
+                  <th scope="col" class="px-6 py-4 font-semibold text-gray-700 border-b border-gray-200">Day of Week</th>
+                  <th scope="col" class="px-4 py-4 font-semibold text-gray-700 border-b border-gray-200 text-center">Open All</th>
+                  <th scope="col" class="px-6 py-4 font-semibold text-gray-700 border-b border-gray-200">Google Flights Live Search Link</th>
+                  <th scope="col" class="px-6 py-4 font-semibold text-gray-700 border-b border-gray-200">Kayak Live Search Link</th>
+                  <th scope="col" class="px-6 py-4 font-semibold text-gray-700 border-b border-gray-200">Skyscanner Live Search Link</th>
+                  <th scope="col" class="px-6 py-4 font-semibold text-gray-700 border-b border-gray-200">Expedia Live Search Link</th>
+                </tr>
+              </thead>
+              <tbody id="flightsTableBody" class="bg-white divide-y divide-gray-100">
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    const AIRPORTS = {
+      BOS: { name: 'Boston Logan International Airport', city: 'Boston', country: 'United States' },
+      WAW: { name: 'Warsaw Chopin Airport', city: 'Warsaw', country: 'Poland' },
+      PRG: { name: 'Václav Havel Airport Prague', city: 'Prague', country: 'Czech Republic' },
+      BUD: { name: 'Budapest Ferenc Liszt International Airport', city: 'Budapest', country: 'Hungary' },
+      OTP: { name: 'Henri Coandă International Airport', city: 'Bucharest', country: 'Romania' },
+      SOF: { name: 'Sofia Airport', city: 'Sofia', country: 'Bulgaria' },
+      BEG: { name: 'Belgrade Nikola Tesla Airport', city: 'Belgrade', country: 'Serbia' },
+      ATH: { name: 'Athens International Airport', city: 'Athens', country: 'Greece' },
+      RIX: { name: 'Riga International Airport', city: 'Riga', country: 'Latvia' },
+      TLL: { name: 'Lennart Meri Tallinn Airport', city: 'Tallinn', country: 'Estonia' },
+      VNO: { name: 'Vilnius Airport', city: 'Vilnius', country: 'Lithuania' },
+      NRT: { name: 'Narita International Airport', city: 'Tokyo', country: 'Japan' },
+      HND: { name: 'Tokyo Haneda Airport', city: 'Tokyo', country: 'Japan' },
+      ICN: { name: 'Incheon International Airport', city: 'Seoul', country: 'South Korea' },
+      PEK: { name: 'Beijing Capital International Airport', city: 'Beijing', country: 'China' },
+      PVG: { name: 'Shanghai Pudong International Airport', city: 'Shanghai', country: 'China' },
+      HKG: { name: 'Hong Kong International Airport', city: 'Hong Kong', country: 'Hong Kong SAR' },
+      TPE: { name: 'Taiwan Taoyuan International Airport', city: 'Taipei', country: 'Taiwan' },
+      DEL: { name: 'Indira Gandhi International Airport', city: 'New Delhi', country: 'India' },
+      BOM: { name: 'Chhatrapati Shivaji Maharaj International Airport', city: 'Mumbai', country: 'India' },
+      BKK: { name: 'Suvarnabhumi Airport', city: 'Bangkok', country: 'Thailand' },
+      DAD: { name: 'Da Nang International Airport', city: 'Da Nang', country: 'Vietnam' },
+      HKT: { name: 'Phuket International Airport', city: 'Phuket', country: 'Thailand' },
+      USM: { name: 'Samui Airport', city: 'Koh Samui', country: 'Thailand' },
+      SIN: { name: 'Singapore Changi Airport', city: 'Singapore', country: 'Singapore' },
+      KUL: { name: 'Kuala Lumpur International Airport', city: 'Kuala Lumpur', country: 'Malaysia' },
+      SGN: { name: 'Tan Son Nhat International Airport', city: 'Ho Chi Minh City', country: 'Vietnam' },
+      HAN: { name: 'Noi Bai International Airport', city: 'Hanoi', country: 'Vietnam' },
+      MNL: { name: 'Ninoy Aquino International Airport', city: 'Manila', country: 'Philippines' },
+      CEB: { name: 'Mactan-Cebu International Airport', city: 'Cebu', country: 'Philippines' },
+      CGK: { name: 'Soekarno-Hatta International Airport', city: 'Jakarta', country: 'Indonesia' },
+      DPS: { name: 'Ngurah Rai International Airport', city: 'Denpasar (Bali)', country: 'Indonesia' },
+      PNH: { name: 'Phnom Penh International Airport', city: 'Phnom Penh', country: 'Cambodia' },
+      RGN: { name: 'Yangon International Airport', city: 'Yangon', country: 'Myanmar' },
+      VTE: { name: 'Wattay International Airport', city: 'Vientiane', country: 'Laos' },
+    };
+
+    const POPULAR_ROUTE_GROUPS = [
+      {
+        label: 'Eastern Europe',
+        destinations: ['WAW', 'PRG', 'BUD', 'OTP', 'SOF', 'BEG', 'ATH', 'RIX', 'TLL', 'VNO'],
+      },
+      {
+        label: 'East Asia',
+        destinations: ['NRT', 'HND', 'ICN', 'PEK', 'PVG', 'HKG', 'TPE', 'DEL', 'BOM'],
+      },
+      {
+        label: 'Southeast Asia',
+        destinations: ['BKK', 'DAD', 'HKT', 'USM', 'SIN', 'KUL', 'SGN', 'HAN', 'MNL', 'CEB', 'CGK', 'DPS', 'PNH', 'RGN', 'VTE'],
+      },
+    ];
+
+    function airportTooltip(code) {
+      const airport = AIRPORTS[code];
+      if (!airport) return code;
+      return `${airport.name} — ${airport.city}, ${airport.country}`;
+    }
+
+    function routeTooltip(from, to) {
+      return `${airportTooltip(from)} → ${airportTooltip(to)}`;
+    }
+
+    function getCurrentOrigin() {
+      return document.getElementById('fromAirport').value.trim().toUpperCase() || 'BOS';
+    }
+
+    function updatePopularRoutes() {
+      renderPopularRoutes();
+    }
+
+    function renderPopularRoutes() {
+      const container = document.getElementById('popularRoutes');
+      const from = getCurrentOrigin();
+      const buttonClass = 'px-2 py-1 bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs rounded transition font-medium';
+
+      container.innerHTML = '';
+
+      const label = document.createElement('span');
+      label.className = 'block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3';
+      label.textContent = `Popular Routes from ${from}`;
+      container.appendChild(label);
+
+      POPULAR_ROUTE_GROUPS.forEach((group, index) => {
+        const heading = document.createElement('span');
+        heading.className = `block text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2${index === 0 ? ' mt-1' : ''}`;
+        heading.textContent = group.label;
+        container.appendChild(heading);
+
+        const groupEl = document.createElement('div');
+        groupEl.className = `flex flex-wrap gap-2${index < POPULAR_ROUTE_GROUPS.length - 1 ? ' mb-4' : ''}`;
+
+        group.destinations.forEach((to) => {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = buttonClass;
+          button.textContent = `${from} ➔ ${to}`;
+          button.title = routeTooltip(from, to);
+          button.addEventListener('click', () => setQuickRoute(getCurrentOrigin(), to));
+          groupEl.appendChild(button);
+        });
+
+        container.appendChild(groupEl);
+      });
+    }
+
+    window.addEventListener('load', () => {
+      renderPopularRoutes();
+      document.getElementById('startDate').value = '2026-06-18';
+      generateTable();
+    });
+
+    function openAllSearchLinks(urls) {
+      urls.forEach((url) => window.open(url, '_blank', 'noopener,noreferrer'));
+    }
+
+    function formatIsoDate(date) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    function generateTable() {
+      const fromAirport = document.getElementById('fromAirport').value.trim().toUpperCase() || 'BOS';
+      const toAirport = document.getElementById('toAirport').value.trim().toUpperCase() || 'BKK';
+      const startDateStr = document.getElementById('startDate').value;
+      const durationDays = parseInt(document.getElementById('durationDays').value, 10);
+
+      if (!startDateStr) return;
+
+      const startDate = new Date(startDateStr + 'T00:00:00');
+      const tableBody = document.getElementById('flightsTableBody');
+      tableBody.innerHTML = '';
+
+      document.getElementById('badgeFrom').textContent = fromAirport;
+      document.getElementById('badgeTo').textContent = toAirport;
+
+      let lastDateFormatted = '';
+
+      for (let i = 0; i < durationDays; i++) {
+        const currentDate = new Date(startDate);
+        currentDate.setDate(startDate.getDate() + i);
+
+        const isoDate = formatIsoDate(currentDate);
+        const dayOfWeek = currentDate.toLocaleDateString('en-US', { weekday: 'long' });
+        const displayDate = currentDate.toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+        });
+
+        const yy = currentDate.getFullYear().toString().slice(-2);
+        const mm = String(currentDate.getMonth() + 1).padStart(2, '0');
+        const dd = String(currentDate.getDate()).padStart(2, '0');
+        const yymmdd = `${yy}${mm}${dd}`;
+
+        if (i === durationDays - 1) {
+          lastDateFormatted = isoDate;
+        }
+
+        const googleFlightsQuery = `Flights to ${toAirport} from ${fromAirport} on ${isoDate} one way`;
+        const googleFlightsUrl = `https://www.google.com/travel/flights?q=${encodeURIComponent(googleFlightsQuery)}`;
+        const kayakUrl = `https://www.kayak.com/flights/${fromAirport}-${toAirport}/${isoDate}?sort=price_a`;
+        const skyscannerUrl = `https://www.skyscanner.com/transport/flights/${fromAirport.toLowerCase()}/${toAirport.toLowerCase()}/${yymmdd}/?adults=1&rtn=0`;
+        const expediaUrl = `https://www.expedia.com/go/flight/search/oneway/${isoDate}/${isoDate}?load=1&FromAirport=${fromAirport}&ToAirport=${toAirport}&NumAdult=1`;
+
+        const searchUrls = [googleFlightsUrl, kayakUrl, skyscannerUrl, expediaUrl];
+
+        const row = document.createElement('tr');
+        row.className = 'hover:bg-slate-50/50 transition';
+        row.innerHTML = `
+          <td class="px-6 py-4 whitespace-nowrap font-medium text-gray-900">${displayDate}</td>
+          <td class="px-6 py-4 whitespace-nowrap text-gray-500">${dayOfWeek}</td>
+          <td class="px-4 py-4 whitespace-nowrap text-center">
+            <button type="button"
+              data-urls='${JSON.stringify(searchUrls)}'
+              onclick="openAllSearchLinks(JSON.parse(this.dataset.urls))"
+              class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-md shadow-sm transition focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              Open All
+            </button>
+          </td>
+          <td class="px-6 py-4 whitespace-nowrap">
+            <a href="${googleFlightsUrl}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 custom-underline font-medium">Google Flights</a>
+          </td>
+          <td class="px-6 py-4 whitespace-nowrap">
+            <a href="${kayakUrl}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 custom-underline font-medium">Kayak</a>
+          </td>
+          <td class="px-6 py-4 whitespace-nowrap">
+            <a href="${skyscannerUrl}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 custom-underline font-medium">Skyscanner</a>
+          </td>
+          <td class="px-6 py-4 whitespace-nowrap">
+            <a href="${expediaUrl}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 custom-underline font-medium">Expedia</a>
+          </td>
+        `;
+        tableBody.appendChild(row);
+      }
+
+      document.getElementById('textDateRange').textContent = `${startDateStr} to ${lastDateFormatted}`;
+    }
+
+    function resetToBOSBKK() {
+      document.getElementById('fromAirport').value = 'BOS';
+      document.getElementById('toAirport').value = 'BKK';
+      document.getElementById('startDate').value = '2026-06-18';
+      document.getElementById('durationDays').value = '31';
+      updatePopularRoutes();
+      generateTable();
+    }
+
+    function setQuickRoute(from, to) {
+      document.getElementById('fromAirport').value = from;
+      document.getElementById('toAirport').value = to;
+      generateTable();
+    }
+  </script>
+</body>
+</html>
